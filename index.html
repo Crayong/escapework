@@ -1,0 +1,186 @@
+<!DOCTYPE html><html><head>
+    <title>ESCAPE NO.1 - Online Edition</title>
+    <style>
+        body { text-align: center; background: #1a1a1a; color: white; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; }
+        canvas { background: #f0f0f0; display: block; margin: 20px auto; border: 10px solid #333; cursor: none; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
+        .menu { background: #333; padding: 20px; border-radius: 10px; display: inline-block; }
+        button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #ffcc00; font-weight: bold; margin: 5px; }
+        button:hover { background: #ffa500; }
+        .hidden { display: none; }
+        .leaderboard { margin-top: 15px; text-align: left; font-size: 14px; color: #ffcc00; line-height: 1.6; }
+    </style></head><body>
+    <h1>ESCAPE NO.1</h1>
+    
+    <div id="start-screen" class="menu">
+        <p>캐릭터를 선택하세요!</p>
+        <button onclick="window.startGame('worker1.png')">공주</button>
+        <button onclick="window.startGame('worker2.png')">청양</button>
+        <button onclick="window.startGame('worker3.png')">논산계룡</button>
+        <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
+        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(커피/돈을 먹으면 5초간 무적!)</p>
+    </div>
+
+    <canvas id="gameCanvas" width="450" height="700" class="hidden"></canvas>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getDatabase, ref, push, set, onValue, query, orderByChild, limitToLast } 
+        from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+        // 1. Firebase 설정
+        const firebaseConfig = {
+            apiKey: "AIzaSyCuzD3SMZG_opARlCgKEbF4fVzvnuhPMKg",
+            authDomain: "escapeone-fc10e.firebaseapp.com",
+            databaseURL: "https://escapeone-fc10e-default-rtdb.asia-southeast1.firebasedatabase.app",
+            projectId: "escapeone-fc10e",
+            storageBucket: "escapeone-fc10e.firebasestorage.app",
+            messagingSenderId: "887833209533",
+            appId: "1:887833209533:web:a674d2a8fa35f29efba5d4",
+            measurementId: "G-GSRR230YTK"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getDatabase(app);
+
+        // 2. 게임 변수 설정
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const leaderboardDiv = document.getElementById('leaderboard');
+
+        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image(), invincible: false };
+        let obstacles = [];
+        let items = [];
+        let score = 0;
+        let gameActive = false;
+
+        // 3. 온라인 리더보드 불러오기 (실시간)
+        const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(20));
+        onValue(scoreRef, (snapshot) => {
+            const data = snapshot.val();
+            if (data) {
+                // Firebase는 오름차순으로 가져오므로 내림차순 정렬 필요
+                const sorted = Object.values(data).sort((a, b) => b.score - a.score);
+                let html = "<b>[글로벌 하드워커 Top 20 기록]</b><br>";
+                sorted.forEach((item, i) => {
+                    html += `${i+1}위: ${item.username} - ${item.score}개<br>`;
+                });
+                leaderboardDiv.innerHTML = html;
+            } else {
+                leaderboardDiv.innerHTML = "첫 기록을 남겨보세요!";
+            }
+        });
+
+        // 4. 게임 함수들 (window 객체에 붙여야 HTML 버튼에서 실행 가능)
+        window.startGame = function(imgSrc) {
+            player.img.src = imgSrc;
+            startScreen.classList.add('hidden');
+            canvas.classList.remove('hidden');
+            gameActive = true;
+            score = 0;
+            obstacles = [];
+            items = [];
+            requestAnimationFrame(update);
+        }
+
+        function update() {
+            if (!gameActive) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // 배경 격자
+            ctx.strokeStyle = "#eee";
+            for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
+
+            // 캐릭터 이동 제한
+            canvas.onmousemove = (e) => {
+                let rect = canvas.getBoundingClientRect();
+                let tx = e.clientX - rect.left - player.w / 2;
+                player.x = Math.max(0, Math.min(tx, canvas.width - player.w));
+            };
+
+            if (player.invincible) ctx.globalAlpha = Math.sin(Date.now()/100) * 0.5 + 0.5;
+            ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
+            ctx.globalAlpha = 1.0;
+
+            let px = player.x + player.w / 2;
+            let py = player.y + player.h / 2;
+            
+            // --- 아주 러프한 판정 (shrinkAmount 적용) ---
+            let shrinkAmount = 18; 
+
+            obstacles.forEach((obj, index) => {
+                obj.y += 3 + (score / 200); 
+                ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
+
+                if (!player.invincible && 
+                    px > obj.x + shrinkAmount && px < obj.x + obj.w - shrinkAmount &&
+                    py > obj.y + shrinkAmount && py < obj.y + obj.h - shrinkAmount) {
+                    gameOver();
+                }
+
+                if (obj.y > canvas.height) {
+                    obstacles.splice(index, 1);
+                    score++;
+                }
+            });
+
+            // 아이템 업데이트
+            items.forEach((item, index) => {
+                item.y += 3;
+                ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
+                if (px > item.x && px < item.x + item.w && py > item.y && py < item.y + item.h) {
+                    items.splice(index, 1);
+                    activateInvincible();
+                }
+            });
+
+            spawnObstacle();
+            spawnItem();
+            
+            ctx.fillStyle = "#333";
+            ctx.font = "bold 20px Arial";
+            ctx.fillText("퇴근까지 남은 일: " + score, 20, 40);
+            if(player.invincible) {
+                ctx.fillStyle = "red";
+                ctx.fillText("🔥 야근 수당 파워!", 20, 70);
+            }
+            requestAnimationFrame(update);
+        }
+
+        function spawnObstacle() {
+            let dynamicSpawnChance = Math.min(0.12, 0.04 + (score / 800));
+            if (Math.random() < dynamicSpawnChance) {
+                const types = [{ src: 'laptop.png', size: 50 }, { src: 'clock.png', size: 45 }, { src: 'docs.png', size: 50 }];
+                let type = types[Math.floor(Math.random() * types.length)];
+                let obs = { x: Math.random() * (canvas.width - type.size), y: -type.size, w: type.size, h: type.size, img: new Image() };
+                obs.img.src = type.src;
+                obstacles.push(obs);
+            }
+        }
+
+        function spawnItem() {
+            if (Math.random() < 0.003) {
+                const itemTypes = ['coffee.png', 'money.png'];
+                let item = { x: Math.random() * (canvas.width - 50), y: -50, w: 50, h: 50, img: new Image() };
+                item.img.src = itemTypes[Math.floor(Math.random() * itemTypes.length)];
+                items.push(item);
+            }
+        }
+
+        function gameOver() {
+            gameActive = false;
+            const name = prompt("업무 폭탄! 최종 점수: " + score + "\n이름을 입력하세요:", "익명");
+            if (name) {
+                const newScoreRef = push(ref(db, 'leaderboard'));
+                set(newScoreRef, { username: name, score: score, timestamp: Date.now() })
+                .then(() => location.reload());
+            } else {
+                location.reload();
+            }
+        }
+
+        function activateInvincible() {
+            player.invincible = true;
+            setTimeout(() => { player.invincible = false; }, 5000);
+        }
+    </script></body></html>
