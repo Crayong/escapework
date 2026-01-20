@@ -12,12 +12,12 @@
     <h1>ESCAPE NO.1</h1>
     
     <div id="start-screen" class="menu">
-        <p>캐릭터를 선택하세요!</p>
+        <p>탈출할 캐릭터를 선택하세요!</p>
         <button onclick="window.startGame('worker1.png')">공주</button>
         <button onclick="window.startGame('worker2.png')">청양</button>
         <button onclick="window.startGame('worker3.png')">논산계룡</button>
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
-        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(커피/돈을 먹으면 5초간 무적!)</p>
+        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(돈 아이템을 먹으면 보너스 50점!)</p>
     </div>
 
     <canvas id="gameCanvas" width="450" height="700" class="hidden"></canvas>
@@ -48,22 +48,22 @@
         const startScreen = document.getElementById('start-screen');
         const leaderboardDiv = document.getElementById('leaderboard');
 
-        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image(), invincible: false };
+        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() }; // invincible 제거
         let obstacles = [];
         let items = [];
+        let floatingTexts = []; // 보너스 텍스트 효과 배열
         let score = 0;
         let gameActive = false;
 
-        // 3. 온라인 리더보드 불러오기 (실시간)
+        // 3. 온라인 리더보드 불러오기
         const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(20));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
-                // Firebase는 오름차순으로 가져오므로 내림차순 정렬 필요
                 const sorted = Object.values(data).sort((a, b) => b.score - a.score);
                 let html = "<b>[글로벌 하드워커 Top 20 기록]</b><br>";
                 sorted.forEach((item, i) => {
-                    html += `${i+1}위: ${item.username} - ${item.score}개<br>`;
+                    html += `${i+1}위: ${item.username} - ${item.score}점<br>`;
                 });
                 leaderboardDiv.innerHTML = html;
             } else {
@@ -71,7 +71,7 @@
             }
         });
 
-        // 4. 게임 함수들 (window 객체에 붙여야 HTML 버튼에서 실행 가능)
+        // 4. 게임 함수들
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
             startScreen.classList.add('hidden');
@@ -80,6 +80,7 @@
             score = 0;
             obstacles = [];
             items = [];
+            floatingTexts = [];
             requestAnimationFrame(update);
         }
 
@@ -91,29 +92,25 @@
             ctx.strokeStyle = "#eee";
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
 
-            // 캐릭터 이동 제한
+            // 캐릭터 이동
             canvas.onmousemove = (e) => {
                 let rect = canvas.getBoundingClientRect();
                 let tx = e.clientX - rect.left - player.w / 2;
                 player.x = Math.max(0, Math.min(tx, canvas.width - player.w));
             };
 
-            if (player.invincible) ctx.globalAlpha = Math.sin(Date.now()/100) * 0.5 + 0.5;
             ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
-            ctx.globalAlpha = 1.0;
 
             let px = player.x + player.w / 2;
             let py = player.y + player.h / 2;
-            
-            // --- 아주 러프한 판정 (shrinkAmount 적용) ---
             let shrinkAmount = 18; 
 
+            // 장애물 업데이트
             obstacles.forEach((obj, index) => {
-                obj.y += 3 + (score / 200); 
+                obj.y += 3 + (score / 500); // 난이도 곡선 조절
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
 
-                if (!player.invincible && 
-                    px > obj.x + shrinkAmount && px < obj.x + obj.w - shrinkAmount &&
+                if (px > obj.x + shrinkAmount && px < obj.x + obj.w - shrinkAmount &&
                     py > obj.y + shrinkAmount && py < obj.y + obj.h - shrinkAmount) {
                     gameOver();
                 }
@@ -124,14 +121,30 @@
                 }
             });
 
-            // 아이템 업데이트
+            // 아이템 업데이트 (무적 제거, 점수 추가)
             items.forEach((item, index) => {
                 item.y += 3;
                 ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
                 if (px > item.x && px < item.x + item.w && py > item.y && py < item.y + item.h) {
+                    if (item.img.src.includes('money.png')) {
+                        score += 50;
+                        floatingTexts.push({ x: item.x, y: item.y, alpha: 1.0, text: "💰 +50 Bonus!" });
+                    } else if (item.img.src.includes('coffee.png')) {
+                        score += 10;
+                        floatingTexts.push({ x: item.x, y: item.y, alpha: 1.0, text: "☕ Coffee! +10" });
+                    }
                     items.splice(index, 1);
-                    activateInvincible();
                 }
+            });
+
+            // 팝업 텍스트 연출
+            floatingTexts.forEach((ft, i) => {
+                ctx.fillStyle = `rgba(255, 204, 0, ${ft.alpha})`;
+                ctx.font = "bold 22px Courier New";
+                ctx.fillText(ft.text, ft.x, ft.y);
+                ft.y -= 1.5;
+                ft.alpha -= 0.02;
+                if (ft.alpha <= 0) floatingTexts.splice(i, 1);
             });
 
             spawnObstacle();
@@ -139,16 +152,13 @@
             
             ctx.fillStyle = "#333";
             ctx.font = "bold 20px Arial";
-            ctx.fillText("퇴근까지 남은 일: " + score, 20, 40);
-            if(player.invincible) {
-                ctx.fillStyle = "red";
-                ctx.fillText("🔥 야근 수당 파워!", 20, 70);
-            }
+            ctx.fillText("처리한 업무량: " + score, 20, 40);
+
             requestAnimationFrame(update);
         }
 
         function spawnObstacle() {
-            let dynamicSpawnChance = Math.min(0.12, 0.04 + (score / 800));
+            let dynamicSpawnChance = Math.min(0.12, 0.04 + (score / 1500));
             if (Math.random() < dynamicSpawnChance) {
                 const types = [{ src: 'laptop.png', size: 50 }, { src: 'clock.png', size: 45 }, { src: 'docs.png', size: 50 }];
                 let type = types[Math.floor(Math.random() * types.length)];
@@ -159,7 +169,7 @@
         }
 
         function spawnItem() {
-            if (Math.random() < 0.003) {
+            if (Math.random() < 0.005) { // 아이템 등장 확률 살짝 상향
                 const itemTypes = ['coffee.png', 'money.png'];
                 let item = { x: Math.random() * (canvas.width - 50), y: -50, w: 50, h: 50, img: new Image() };
                 item.img.src = itemTypes[Math.floor(Math.random() * itemTypes.length)];
@@ -177,10 +187,5 @@
             } else {
                 location.reload();
             }
-        }
-
-        function activateInvincible() {
-            player.invincible = true;
-            setTimeout(() => { player.invincible = false; }, 5000);
         }
     </script></body></html>
