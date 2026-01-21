@@ -103,8 +103,19 @@
 
             let px = player.x + player.w / 2;
             let py = player.y + player.h / 2;
-            let shrinkAmount = 18; 
+            let shrinkAmount = 13; 
 
+            // 캐릭터 이동 (개선된 로직)
+            window.addEventListener('mousemove', (e) => {
+            let rect = canvas.getBoundingClientRect();
+            // 마우스가 캔버스 왼쪽/오른쪽 어디에 있든 캔버스 내부 x축 값으로 계산
+            let mouseX = e.clientX - rect.left;
+            let tx = mouseX - player.w / 2;
+    
+            // 0과 캔버스 너비 사이로 고정하여 화면 밖으로 나가도 캐릭터는 끝에 붙어 있음
+            player.x = Math.max(0, Math.min(tx, canvas.width - player.w));
+            });
+            
             // 장애물 업데이트
             obstacles.forEach((obj, index) => {
                 obj.y += 3 + (score / 500); // 난이도 곡선 조절
@@ -189,3 +200,4 @@
             }
         }
     </script></body></html>
+
