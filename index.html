@@ -14,7 +14,7 @@
     <div id="start-screen" class="menu">
         <p>탈출할 캐릭터를 선택하세요!</p>
         <button onclick="window.startGame('worker1.png')">공주</button>
-        <button onclick="window.startGame('worker2.png')">천안</button>
+        <button onclick="window.startGame('worker2.png')">청양</button>
         <button onclick="window.startGame('worker3.png')">논산계룡</button>
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(돈 아이템을 먹으면 보너스 50점!)</p>
@@ -48,10 +48,13 @@
         const startScreen = document.getElementById('start-screen');
         const leaderboardDiv = document.getElementById('leaderboard');
 
-        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() }; // invincible 제거
+        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() };
+        let targetX = 190; // 마우스 목표 위치
+        const easing = 0.12; // 미끄러지는 효과 강도 (작을수록 더 미끄러짐)
+        
         let obstacles = [];
         let items = [];
-        let floatingTexts = []; // 보너스 텍스트 효과 배열
+        let floatingTexts = [];
         let score = 0;
         let gameActive = false;
 
@@ -71,6 +74,15 @@
             }
         });
 
+        // 마우스 이동 이벤트 (캔버스 밖으로 나가도 캐릭터가 끝까지 따라오도록 개선)
+        window.addEventListener('mousemove', (e) => {
+            if (!gameActive) return;
+            let rect = canvas.getBoundingClientRect();
+            let mouseX = e.clientX - rect.left;
+            // 캔버스 범위를 벗어나지 않게 Clamp 처리
+            targetX = Math.max(0, Math.min(mouseX - player.w / 2, canvas.width - player.w));
+        });
+
         // 4. 게임 함수들
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
@@ -78,6 +90,8 @@
             canvas.classList.remove('hidden');
             gameActive = true;
             score = 0;
+            targetX = 190;
+            player.x = 190;
             obstacles = [];
             items = [];
             floatingTexts = [];
@@ -92,33 +106,18 @@
             ctx.strokeStyle = "#eee";
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
 
-            // 캐릭터 이동
-            canvas.onmousemove = (e) => {
-                let rect = canvas.getBoundingClientRect();
-                let tx = e.clientX - rect.left - player.w / 2;
-                player.x = Math.max(0, Math.min(tx, canvas.width - player.w));
-            };
+            // [추가] 부드럽게 미끄러지는 이동 로직
+            player.x += (targetX - player.x) * easing;
 
             ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
 
             let px = player.x + player.w / 2;
             let py = player.y + player.h / 2;
-            let shrinkAmount = 7; 
+            let shrinkAmount = 5; // [수정] 판정을 더 엄격하게 (기존 18 -> 5)
 
-            // 캐릭터 이동 (개선된 로직)
-            window.addEventListener('mousemove', (e) => {
-            let rect = canvas.getBoundingClientRect();
-            // 마우스가 캔버스 왼쪽/오른쪽 어디에 있든 캔버스 내부 x축 값으로 계산
-            let mouseX = e.clientX - rect.left;
-            let tx = mouseX - player.w / 2;
-    
-            // 0과 캔버스 너비 사이로 고정하여 화면 밖으로 나가도 캐릭터는 끝에 붙어 있음
-            player.x = Math.max(0, Math.min(tx, canvas.width - player.w));
-            });
-            
             // 장애물 업데이트
             obstacles.forEach((obj, index) => {
-                obj.y += 3 + (score / 500); // 난이도 곡선 조절
+                obj.y += 3 + (score / 500);
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
 
                 if (px > obj.x + shrinkAmount && px < obj.x + obj.w - shrinkAmount &&
@@ -132,7 +131,7 @@
                 }
             });
 
-            // 아이템 업데이트 (무적 제거, 점수 추가)
+            // 아이템 업데이트
             items.forEach((item, index) => {
                 item.y += 3;
                 ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
@@ -180,7 +179,7 @@
         }
 
         function spawnItem() {
-            if (Math.random() < 0.005) { // 아이템 등장 확률 살짝 상향
+            if (Math.random() < 0.005) {
                 const itemTypes = ['coffee.png', 'money.png'];
                 let item = { x: Math.random() * (canvas.width - 50), y: -50, w: 50, h: 50, img: new Image() };
                 item.img.src = itemTypes[Math.floor(Math.random() * itemTypes.length)];
@@ -200,7 +199,3 @@
             }
         }
     </script></body></html>
-
-
-
-
