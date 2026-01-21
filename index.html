@@ -14,7 +14,7 @@
     <div id="start-screen" class="menu">
         <p>탈출할 캐릭터를 선택하세요!</p>
         <button onclick="window.startGame('worker1.png')">공주</button>
-        <button onclick="window.startGame('worker2.png')">청양</button>
+        <button onclick="window.startGame('worker2.png')">천안</button>
         <button onclick="window.startGame('worker3.png')">논산계룡</button>
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(돈 아이템을 먹으면 보너스 50점!)</p>
@@ -103,7 +103,7 @@
 
             let px = player.x + player.w / 2;
             let py = player.y + player.h / 2;
-            let shrinkAmount = 5; 
+            let shrinkAmount = 7; 
 
             // 캐릭터 이동 (개선된 로직)
             window.addEventListener('mousemove', (e) => {
@@ -200,6 +200,7 @@
             }
         }
     </script></body></html>
+
 
 
 
