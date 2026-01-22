@@ -204,10 +204,12 @@
                     bossActive = true;
                     bossTimer = 600; 
                     if (index === 0) currentBossType = "💼 행정실장 업무떠넘기기!!";
+                                     shakeTime = 600; // 1000점 보스 등장 시 흔들림
                     else if (index === 1) currentBossType = "🏫 교장선생님 실없는소리!!";
+                                          shakeTime = 600; // 2000점 보스 등장 시 흔들림
                     else if (index === 2) {
-                        currentBossType = "🧐 감사팀의 코묻은 돈『증빙서류』제출 협박"; 
-                        shakeTime = 600; 
+                        currentBossType = "🧐 감사팀의 증빙서류 제출요구"; 
+                        shakeTime = 800; 
                     }
                     bossTriggers[index] = -1;
                 }
@@ -291,4 +293,5 @@
     </script>
 </body>
 </html>
+
 
