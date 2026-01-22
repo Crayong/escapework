@@ -9,7 +9,7 @@
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #ffcc00; font-weight: bold; margin: 5px; }
         button:hover { background: #ffa500; }
         .hidden { display: none; }
-        .leaderboard { margin-top: 15px; text-align: left; font-size: 14px; color: #ffcc00; line-height: 1.6; }
+        .leaderboard { margin-top: 15px; text-align: left; font-size: 14px; color: #ffcc00; line-height: 1.6; max-height: 300px; overflow-y: auto; }
     </style>
 </head>
 <body>
@@ -36,7 +36,7 @@
             authDomain: "escapeone-fc10e.firebaseapp.com",
             databaseURL: "https://escapeone-fc10e-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "escapeone-fc10e",
-            storageBucket: "escapeone-fc10e.firebasestorage.app",
+            storageBucket: "escapeone-fc10e.firebasedatabase.app",
             messagingSenderId: "887833209533",
             appId: "1:887833209533:web:a674d2a8fa35f29efba5d4",
             measurementId: "G-GSRR230YTK"
@@ -70,6 +70,7 @@
         let bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
+        // 리더보드 실시간 업데이트
         const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(20));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
@@ -94,6 +95,7 @@
             if (e.code === 'Space' && canUseAbility && gameActive) {
                 isInvincible = true;
                 canUseAbility = false;
+                shakeTime = 15; // 스킬 사용 시 짧은 진동
                 floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: "🛡️ 청양고추파워 가동!" });
                 setTimeout(() => { isInvincible = false; }, 2000);
             }
@@ -127,18 +129,24 @@
             if (!gameActive) return;
 
             ctx.save();
+            // 화면 흔들기 효과 적용
             if (shakeTime > 0) {
-                ctx.translate(Math.random() * 14 - 7, Math.random() * 14 - 7);
+                let magnitude = score >= 3000 ? 14 : 7; // 최종 보스일 때 더 크게 흔들림
+                ctx.translate(Math.random() * magnitude - magnitude/2, Math.random() * magnitude - magnitude/2);
                 shakeTime--;
             }
 
-            ctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
+            ctx.clearRect(-50, -50, canvas.width + 100, canvas.height + 100);
 
+            // 배경 격자선
             ctx.strokeStyle = "#eee";
+            ctx.lineWidth = 1;
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
 
+            // 플레이어 이동 (Easing)
             player.x += (targetX - player.x) * easing;
 
+            // 플레이어 그리기 (무적 상태일 때 깜빡임)
             if (!isInvincible || Math.floor(Date.now() / 100) % 2 === 0) {
                 ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
             }
@@ -148,6 +156,7 @@
             let px = player.x + player.w / 2;
             let py = player.y + player.h / 2;
 
+            // 장애물 처리
             obstacles.forEach((obj, index) => {
                 obj.y += 3 + (score / 500);
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
@@ -167,6 +176,7 @@
                 if (obj.y > canvas.height) { obstacles.splice(index, 1); score++; }
             });
 
+            // 아이템 처리
             items.forEach((item, index) => {
                 item.y += 3;
                 ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
@@ -178,6 +188,7 @@
                 }
             });
 
+            // 부유 텍스트 처리
             floatingTexts.forEach((ft, i) => {
                 ctx.fillStyle = `rgba(255, 204, 0, ${ft.alpha})`;
                 ctx.font = "bold 20px Courier New";
@@ -189,8 +200,10 @@
             spawnObstacle();
             spawnItem();
             
+            // UI 표시
             ctx.fillStyle = "#333";
             ctx.font = "bold 20px Arial";
+            ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
             if (canUseAbility) ctx.fillText("[Space] 무적 가능", 20, 70);
 
@@ -202,12 +215,14 @@
             bossTriggers.forEach((trigger, index) => {
                 if (trigger !== -1 && score >= trigger && !bossActive) {
                     bossActive = true;
-                    bossTimer = 600; 
+                    bossTimer = 600; // 약 10초
+                    shakeTime = 600; // 보스 등장 시 화면 흔들림 효과 추가
+                    
                     if (index === 0) currentBossType = "💼 행정실장 업무떠넘기기!!";
                     else if (index === 1) currentBossType = "🏫 교장선생님 실없는소리!!";
                     else if (index === 2) {
-                        currentBossType = "🧐 감사팀의 코묻은 돈『증빙서류』제출 협박"; 
-                        shakeTime = 600; 
+                        currentBossType = "🧐 감사팀의 『증빙서류』 제출 협박"; 
+                        shakeTime = 1000; // 최종 보스는 지속적인 흔들림
                     }
                     bossTriggers[index] = -1;
                 }
@@ -217,20 +232,24 @@
                 bossTimer--;
                 ctx.save();
                 let isFinalBoss = score >= 3000;
+                
+                // 보스 경고 문구 (깜빡임)
                 ctx.fillStyle = Math.floor(Date.now() / (isFinalBoss ? 100 : 200)) % 2 === 0 ? "red" : "orange";
-                ctx.font = isFinalBoss ? "bold 32px Courier New" : "bold 28px Courier New";
+                ctx.font = isFinalBoss ? "bold 28px Courier New" : "bold 24px Courier New";
                 ctx.textAlign = "center";
                 ctx.fillText(currentBossType, canvas.width/2, 120);
                 
                 ctx.font = "bold 16px Arial";
+                ctx.fillStyle = "#333";
                 ctx.fillText(`남은 시간: ${Math.ceil(bossTimer/60)}초`, canvas.width/2, 150);
                 
+                // 보스 패턴: 장애물 생성 빈도 증가
                 if (isFinalBoss) {
                     if (Math.random() < 0.25) spawnObstacle(); 
-                    if (Math.random() < 0.1) {
+                    if (Math.random() < 0.05) {
                         floatingTexts.push({ 
                             x: Math.random() * canvas.width, 
-                            y: 150 + Math.random() * 300, 
+                            y: 200 + Math.random() * 300, 
                             alpha: 1.5, 
                             text: "📁 서류 보완!!" 
                         });
@@ -244,7 +263,7 @@
                     bossActive = false;
                     currentBossType = "";
                     if (isFinalBoss) {
-                        floatingTexts.push({ x: 100, y: 300, alpha: 2.0, text: "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨" });
+                        floatingTexts.push({ x: 50, y: 350, alpha: 2.0, text: "✨ 감사 결과 '주의' 처분! 생존 성공! ✨" });
                     }
                 }
             }
@@ -279,14 +298,17 @@
             else if (score >= 100) msg = "📁 계장님, 이 서류 다시 해오세요.";
             else msg = "🐣 서기보씨... 오늘 점심은 혼자 먹어라.";
 
-            const name = prompt(`${msg}\n최종 점수: ${score}\n이름을 입력하세요:`, "익명");
-            if (name) {
-                const newScoreRef = push(ref(db, 'leaderboard'));
-                set(newScoreRef, { username: name, score: score, timestamp: Date.now() })
-                .then(() => location.reload());
-            } else {
-                location.reload();
-            }
+            // 비동기 처리와 충돌 방지를 위해 약간의 지연 후 prompt 실행
+            setTimeout(() => {
+                const name = prompt(`${msg}\n최종 점수: ${score}\n이름을 입력하세요:`, "익명");
+                if (name) {
+                    const newScoreRef = push(ref(db, 'leaderboard'));
+                    set(newScoreRef, { username: name, score: score, timestamp: Date.now() })
+                    .then(() => location.reload());
+                } else {
+                    location.reload();
+                }
+            }, 100);
         }
     </script>
 </body>
