@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>ESCAPE NO.1 - Online Boss Edition</title>
+    <title>ESCAPE NO.1 - Final Audit Edition</title>
     <style>
         body { text-align: center; background: #1a1a1a; color: white; font-family: 'Courier New', Courier, monospace; margin: 0; padding: 20px; }
         canvas { background: #f0f0f0; display: block; margin: 20px auto; border: 10px solid #333; cursor: none; box-shadow: 0 0 20px rgba(0,0,0,0.5); }
@@ -21,7 +21,7 @@
         <button onclick="window.startGame('worker2.png')">청양 (무적)</button>
         <button onclick="window.startGame('worker3.png')">논산계룡 (보너스)</button>
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
-        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(돈 아이템을 먹으면 보너스 점수!)</p>
+        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(Space바: 청양 무적 스킬 사용)</p>
     </div>
 
     <canvas id="gameCanvas" width="450" height="700" class="hidden"></canvas>
@@ -31,7 +31,6 @@
         import { getDatabase, ref, push, set, onValue, query, orderByChild, limitToLast } 
         from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
 
-        // 1. Firebase 설정
         const firebaseConfig = {
             apiKey: "AIzaSyCuzD3SMZG_opARlCgKEbF4fVzvnuhPMKg",
             authDomain: "escapeone-fc10e.firebaseapp.com",
@@ -46,7 +45,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getDatabase(app);
 
-        // 2. 게임 변수 설정
         const canvas = document.getElementById('gameCanvas');
         const ctx = canvas.getContext('2d');
         const startScreen = document.getElementById('start-screen');
@@ -62,7 +60,6 @@
         let score = 0;
         let gameActive = false;
 
-        // 특수 능력 및 보스 변수
         let hasExtraLife = false;
         let isInvincible = false;
         let canUseAbility = false;
@@ -71,9 +68,8 @@
         let bossTimer = 0;
         let currentBossType = "";
         let bossActive = false;
-        let bossTriggers = [1000, 2000];
+        let bossTriggers = [1000, 2000, 3000];
 
-        // 3. 온라인 리더보드 실시간 갱신
         const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(20));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
@@ -84,8 +80,6 @@
                     html += `${i+1}위: ${item.username} - ${item.score}점<br>`;
                 });
                 leaderboardDiv.innerHTML = html;
-            } else {
-                leaderboardDiv.innerHTML = "첫 기록을 남겨보세요!";
             }
         });
 
@@ -115,7 +109,7 @@
             shakeTime = 0;
             bossActive = false;
             bossTimer = 0;
-            bossTriggers = [1000, 2000];
+            bossTriggers = [1000, 2000, 3000];
 
             startScreen.classList.add('hidden');
             canvas.classList.remove('hidden');
@@ -140,7 +134,6 @@
 
             ctx.clearRect(-20, -20, canvas.width + 40, canvas.height + 40);
 
-            // 배경 격자
             ctx.strokeStyle = "#eee";
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
 
@@ -209,9 +202,13 @@
             bossTriggers.forEach((trigger, index) => {
                 if (trigger !== -1 && score >= trigger && !bossActive) {
                     bossActive = true;
-                    bossTimer = 600; // 10초
-                    currentBossType = index === 0 ? "💼 행정실장 업무떠넘기기!!" : "🏫 교장선생님 실없는소리!!";
-                    shakeTime = 600; // 보스 타임 내내 흔들림
+                    bossTimer = 600; 
+                    if (index === 0) currentBossType = "💼 행정실장 업무떠넘기기!!";
+                    else if (index === 1) currentBossType = "🏫 교장선생님 실없는소리!!";
+                    else if (index === 2) {
+                        currentBossType = "🧐 감사팀의 『증빙서류』제출짜응  !!"; 
+                        shakeTime = 600; 
+                    }
                     bossTriggers[index] = -1;
                 }
             });
@@ -219,19 +216,36 @@
             if (bossActive && bossTimer > 0) {
                 bossTimer--;
                 ctx.save();
-                ctx.fillStyle = Math.floor(Date.now() / 200) % 2 === 0 ? "red" : "orange";
-                ctx.font = "bold 30px Courier New";
+                let isFinalBoss = score >= 3000;
+                ctx.fillStyle = Math.floor(Date.now() / (isFinalBoss ? 100 : 200)) % 2 === 0 ? "red" : "orange";
+                ctx.font = isFinalBoss ? "bold 32px Courier New" : "bold 28px Courier New";
                 ctx.textAlign = "center";
                 ctx.fillText(currentBossType, canvas.width/2, 120);
-                ctx.font = "bold 15px Arial";
+                
+                ctx.font = "bold 16px Arial";
                 ctx.fillText(`남은 시간: ${Math.ceil(bossTimer/60)}초`, canvas.width/2, 150);
+                
+                if (isFinalBoss) {
+                    if (Math.random() < 0.25) spawnObstacle(); 
+                    if (Math.random() < 0.1) {
+                        floatingTexts.push({ 
+                            x: Math.random() * canvas.width, 
+                            y: 150 + Math.random() * 300, 
+                            alpha: 1.5, 
+                            text: "📁 서류 보완!!" 
+                        });
+                    }
+                } else {
+                    if (Math.random() < 0.15) spawnObstacle(); 
+                }
                 ctx.restore();
 
-                if (Math.random() < 0.15) spawnObstacle(); 
-                
                 if (bossTimer <= 0) {
                     bossActive = false;
                     currentBossType = "";
+                    if (isFinalBoss) {
+                        floatingTexts.push({ x: 100, y: 300, alpha: 2.0, text: "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨" });
+                    }
                 }
             }
         }
@@ -259,7 +273,8 @@
         function gameOver() {
             gameActive = false;
             let msg = "";
-            if (score >= 1000) msg = "🔥 전설의 워커홀릭! 하지만 건강을 잃었습니다.";
+            if (score >= 3000) msg = "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨";
+            else if (score >= 1000) msg = "🔥 전설의 워커홀릭! 하지만 건강을 잃었습니다.";
             else if (score >= 500) msg = "🏢 오늘 업무도 정말 고생 많으셨습니다!";
             else if (score >= 100) msg = "📁 계장님, 이 서류 다시 해오세요.";
             else msg = "🐣 서기보씨... 오늘 점심은 혼자 먹어라.";
