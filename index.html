@@ -44,7 +44,7 @@
             authDomain: "escapeone-fc10e.firebaseapp.com",
             databaseURL: "https://escapeone-fc10e-default-rtdb.asia-southeast1.firebasedatabase.app",
             projectId: "escapeone-fc10e",
-            storageBucket: "escapeone-fc10e.firebasedatabase.app",
+            storageBucket: "escapeone-fc10e.firebasestorage.app",
             messagingSenderId: "887833209533",
             appId: "1:887833209533:web:a674d2a8fa35f29efba5d4",
             measurementId: "G-GSRR230YTK"
@@ -80,7 +80,7 @@
             }
         });
 
-        // 게임 변수 및 로직 (기존과 동일)
+        // 게임 변수 및 로직
         let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() };
         let targetX = 190;
         const easing = 0.12;
@@ -170,19 +170,39 @@
         function handleBoss() {
             bossTriggers.forEach((trig, i) => {
                 if (trig !== -1 && score >= trig && !bossActive) {
-                    bossActive = true; bossTimer = 600; shakeTime = 100;
-                    if (i === 0) currentBossType = "💼 행정실장 업무떠넘기기!!";
-                    else if (i === 1) currentBossType = "🏫 교장선생님 실없는소리!!";
-                    else if (i === 2) { currentBossType = "🧐 감사팀 『증빙서류』 협박"; shakeTime = 600; }
+                    bossActive = true; bossTimer = 600; shakeTime = 400;
+                    if (i === 0) currentBossType = "💼 행정실장 업무떠넘기기";
+                    else if (i === 1) currentBossType = "🏫 교장선생님 실없는소리";
+                    else if (i === 2) { currentBossType = "🧐 감사팀의『영수증타령』"; shakeTime = 800; }
                     bossTriggers[i] = -1;
                 }
             });
             if (bossActive && bossTimer > 0) {
                 bossTimer--;
-                ctx.fillStyle = Math.floor(Date.now()/(score>=3000?100:200))%2===0 ? "red" : "orange";
-                ctx.font = "bold 24px Courier New"; ctx.textAlign = "center";
+                ctx.save();
+                let isFinalBoss = score >= 3000;
+                ctx.fillStyle = Math.floor(Date.now()/(isFinalBoss?100:200))%2===0 ? "red" : "orange";
+                ctx.font = isFinalBoss ? "bold 32px Courier New" : "bold 24px Courier New"; ctx.textAlign = "center";
                 ctx.fillText(currentBossType, canvas.width/2, 120);
-                if (bossTimer <= 0) { bossActive = false; currentBossType = ""; }
+                
+                // 보스 공격 패턴 (장애물 추가 생성)
+                if (isFinalBoss) {
+                    if (Math.random() < 0.25) spawnObstacle();
+                    if (Math.random() < 0.1) {
+                        floatingTexts.push({ x: Math.random() * canvas.width, y: 150 + Math.random() * 300, alpha: 1.5, text: "📁 서류 보완!!" });
+                    }
+                } else {
+                    if (Math.random() < 0.18) spawnObstacle();
+                }
+                ctx.restore();
+
+                if (bossTimer <= 0) { 
+                    bossActive = false; 
+                    if (isFinalBoss) {
+                        floatingTexts.push({ x: 50, y: 300, alpha: 2.5, text: "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨" });
+                    }
+                    currentBossType = ""; 
+                }
             }
         }
 
@@ -206,7 +226,15 @@
         function gameOver() {
             gameActive = false;
             setTimeout(() => {
-                const name = prompt(`최종 점수: ${score}\n이름을 입력하세요:`, "익명");
+                // 점수대별 멘트 로직
+                let msg = "";
+                if (score >= 3000) msg = "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨";
+                else if (score >= 1000) msg = "🔥 전설의 워커홀릭! 하지만 건강을 잃었습니다.";
+                else if (score >= 500) msg = "🏢 오늘 업무도 정말 고생 많으셨습니다!";
+                else if (score >= 100) msg = "📁 계장님, 이 서류 다시 해오세요.";
+                else msg = "🐣 서기보씨... 오늘 점심은 혼자 먹어라.";
+
+                const name = prompt(`${msg}\n최종 점수: ${score}\n이름을 입력하세요:`, "익명");
                 if (name) {
                     const newScoreRef = push(ref(db, 'leaderboard'));
                     set(newScoreRef, { username: name, score: score, timestamp: Date.now() }).then(() => location.reload());
