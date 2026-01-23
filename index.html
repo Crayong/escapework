@@ -85,7 +85,7 @@
         let targetX = 190;
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
-        let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, canUseAbility = false;
+        let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; // invincibleCount 추가
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -96,9 +96,12 @@
         });
 
         window.addEventListener('keydown', (e) => {
-            if (e.code === 'Space' && canUseAbility && gameActive) {
-                isInvincible = true; canUseAbility = false; shakeTime = 15;
-                floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: "🛡️ 청양고추파워 가동!" });
+            // 무적 횟수가 남아있을 때만 발동 가능하도록 수정
+            if (e.code === 'Space' && invincibleCount > 0 && gameActive && !isInvincible) {
+                isInvincible = true; 
+                invincibleCount--; // 횟수 차감
+                shakeTime = 15;
+                floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `🛡️ 무적 가동! (남은 횟수: ${invincibleCount})` });
                 setTimeout(() => { isInvincible = false; }, 2000);
             }
         });
@@ -106,8 +109,9 @@
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
             hasExtraLife = imgSrc.includes('worker1.png');
-            canUseAbility = imgSrc.includes('worker2.png');
-            itemBonusValue = imgSrc.includes('worker3.png') ? 70 : 50;
+            // 청양(worker2.png)일 때 무적 횟수를 2로 설정
+            invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
+            itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
             isInvincible = false; shakeTime = 0; bossActive = false; bossTimer = 0;
             bossTriggers = [1000, 2000, 3000];
             startScreen.classList.add('hidden');
@@ -162,7 +166,8 @@
             spawnObstacle(); spawnItem();
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
-            if (canUseAbility) ctx.fillText("[Space] 무적 가능", 20, 70);
+            // 무적 횟수 UI 표시
+            if (invincibleCount > 0) ctx.fillText(`[Space] 무적 가능: ${invincibleCount}회`, 20, 70);
             ctx.restore();
             requestAnimationFrame(update);
         }
@@ -185,7 +190,6 @@
                 ctx.font = isFinalBoss ? "bold 32px Courier New" : "bold 24px Courier New"; ctx.textAlign = "center";
                 ctx.fillText(currentBossType, canvas.width/2, 120);
                 
-                // 보스 공격 패턴 (장애물 추가 생성)
                 if (isFinalBoss) {
                     if (Math.random() < 0.25) spawnObstacle();
                     if (Math.random() < 0.1) {
@@ -226,7 +230,6 @@
         function gameOver() {
             gameActive = false;
             setTimeout(() => {
-                // 점수대별 멘트 로직
                 let msg = "";
                 if (score >= 3000) msg = "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨";
                 else if (score >= 1000) msg = "🔥 전설의 워커홀릭! 건강을 잃었습니다!";
@@ -244,4 +247,3 @@
     </script>
 </body>
 </html>
-
