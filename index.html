@@ -67,12 +67,12 @@
         });
 
         // --- 리더보드 실시간 업데이트 (스크롤 없이 전체 출력) ---
-        const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(20));
+        const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(30));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
             if (data) {
                 const sorted = Object.values(data).sort((a, b) => b.score - a.score);
-                let html = "<b>[글로벌 하드워커 Top 20 기록]</b><br>";
+                let html = "<b>[글로벌 하드워커 Top 30 기록]</b><br>";
                 sorted.forEach((item, i) => {
                     html += `${i+1}위: ${item.username} - ${item.score}점<br>`;
                 });
@@ -229,8 +229,8 @@
                 // 점수대별 멘트 로직
                 let msg = "";
                 if (score >= 3000) msg = "✨ 감사 결과 '주의' 처분으로 버티기 성공! ✨";
-                else if (score >= 1000) msg = "🔥 전설의 워커홀릭! 하지만 건강을 잃었습니다.";
-                else if (score >= 500) msg = "🏢 오늘 업무도 정말 고생 많으셨습니다!";
+                else if (score >= 1000) msg = "🔥 전설의 워커홀릭! 건강을 잃었습니다!";
+                else if (score >= 500) msg = "🏢 오늘 업무도 정말 고생만 하셨습니다!";
                 else if (score >= 100) msg = "📁 계장님, 이 서류 다시 해오세요.";
                 else msg = "🐣 서기보씨... 오늘 점심은 혼자 먹어라.";
 
@@ -244,3 +244,4 @@
     </script>
 </body>
 </html>
+
