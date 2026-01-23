@@ -29,7 +29,7 @@
         <button onclick="window.startGame('worker3.png')">논산계룡 (보너스)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
-        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(Space바: 청양 무적 스킬 사용)</p>
+        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 청양 무적 스킬 사용)</p>
     </div>
 
     <canvas id="gameCanvas" width="450" height="700" class="hidden"></canvas>
@@ -85,7 +85,7 @@
         let targetX = 190;
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
-        let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; // invincibleCount 추가
+        let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; 
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -95,11 +95,11 @@
             targetX = Math.max(0, Math.min(e.clientX - rect.left - player.w/2, canvas.width - player.w));
         });
 
-        window.addEventListener('keydown', (e) => {
-            // 무적 횟수가 남아있을 때만 발동 가능하도록 수정
-            if (e.code === 'Space' && invincibleCount > 0 && gameActive && !isInvincible) {
+        // 스페이스바 대신 마우스 클릭(mousedown)으로 변경
+        window.addEventListener('mousedown', (e) => {
+            if (gameActive && invincibleCount > 0 && !isInvincible) {
                 isInvincible = true; 
-                invincibleCount--; // 횟수 차감
+                invincibleCount--; 
                 shakeTime = 15;
                 floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `🛡️ 무적 가동! (남은 횟수: ${invincibleCount})` });
                 setTimeout(() => { isInvincible = false; }, 2000);
@@ -109,7 +109,6 @@
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
             hasExtraLife = imgSrc.includes('worker1.png');
-            // 청양(worker2.png)일 때 무적 횟수를 2로 설정
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
             isInvincible = false; shakeTime = 0; bossActive = false; bossTimer = 0;
@@ -166,8 +165,7 @@
             spawnObstacle(); spawnItem();
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
-            // 무적 횟수 UI 표시
-            if (invincibleCount > 0) ctx.fillText(`[Space] 무적 가능: ${invincibleCount}회`, 20, 70);
+            if (invincibleCount > 0) ctx.fillText(`클릭으로 무적 가능: ${invincibleCount}회`, 20, 70);
             ctx.restore();
             requestAnimationFrame(update);
         }
