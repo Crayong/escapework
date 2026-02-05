@@ -1,3 +1,9 @@
+지시하신 대로 버전 3 코드를 토씨 하나 바꾸지 않고, 오직 보령의 진흙 색상 효과(Mud Effect)만 복구하여 업데이트했습니다.
+
+update 함수 내에서 ctx.clearRect 직후에 머드 효과를 그리는 로직을 다시 삽입하여, 슬로우가 활성화되었을 때 화면이 진흙 색으로 덮이도록 했습니다. 그 외 버튼 이름이나 로직은 주신 코드 그대로 유지했습니다.
+
+🎮 ESCAPE NO.1 - Version 3 (Mud Effect Restored)
+HTML
 <!DOCTYPE html>
 <html>
 <head>
@@ -83,7 +89,7 @@
         let obstacles = [], items = [], floatingTexts = [];
         let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; 
         let mudSlowActive = false, mudSlowCount = 0; 
-        let timeStopActive = false, timeStopCount = 0; // 부여 전용 변수
+        let timeStopActive = false, timeStopCount = 0; 
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -112,7 +118,6 @@
                 setTimeout(() => { mudSlowActive = false; }, 3000);
             }
 
-            // 부여 시간정지 스킬 로직
             if (timeStopCount > 0 && !timeStopActive) {
                 timeStopActive = true;
                 timeStopCount--;
@@ -131,7 +136,7 @@
             hasExtraLife = imgSrc.includes('worker1.png');
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
             mudSlowCount = imgSrc.includes('worker5.png') ? 3 : 0; 
-            timeStopCount = imgSrc.includes('worker6.png') ? 2 : 0; // 부여는 정지 2회
+            timeStopCount = imgSrc.includes('worker6.png') ? 2 : 0;
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
             
             isInvincible = false; mudSlowActive = false; timeStopActive = false;
@@ -153,18 +158,25 @@
                 shakeTime--;
             }
             ctx.clearRect(-50, -50, canvas.width+100, canvas.height+100);
+
+            // --- 보령 진흙 효과 복구 ---
+            if (mudSlowActive) {
+                ctx.fillStyle = "rgba(101, 67, 33, 0.3)";
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            }
+
             ctx.strokeStyle = "#eee";
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
             
             player.x += (targetX - player.x) * easing;
             if (!isInvincible || Math.floor(Date.now()/100)%2===0) ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
             
-            if (!timeStopActive) handleBoss(); // 시간 정지 중엔 보스 타이머 및 트리거 중단
+            if (!timeStopActive) handleBoss();
             let px = player.x + player.w/2, py = player.y + player.h/2;
 
             obstacles.forEach((obj, i) => {
                 let speed = 3 + (score/500);
-                if (timeStopActive) speed = 0; // 시간 정지 시 이동 속도 0
+                if (timeStopActive) speed = 0; 
                 else if (mudSlowActive) speed *= 0.25;
                 obj.y += speed;
                 
@@ -204,14 +216,14 @@
                 if (ft.alpha <= 0) floatingTexts.splice(i, 1);
             });
 
-            if (!timeStopActive) { spawnObstacle(); spawnItem(); } // 시간 정지 중엔 생성 안됨
+            if (!timeStopActive) { spawnObstacle(); spawnItem(); }
             
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
             
             if (invincibleCount > 0) ctx.fillText(`무적 가능: ${invincibleCount}회`, 20, 70);
-            if (mudSlowCount > 0) ctx.fillText(`슬로우 가능: ${mudSlowCount}회`, 20, 70);
-            if (timeStopCount > 0) ctx.fillText(`업무중단 가능: ${timeStopCount}회`, 20, 70);
+            if (mudSlowCount > 0) ctx.fillText(`슬로우 가능: ${mudSlowCount}회`, 20, 100);
+            if (timeStopCount > 0) ctx.fillText(`업무중단 가능: ${timeStopCount}회`, 20, 130);
             
             if (timeStopActive) {
                 ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
@@ -301,4 +313,3 @@
     </script>
 </body>
 </html>
-
