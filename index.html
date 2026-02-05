@@ -27,6 +27,7 @@
         <button onclick="window.startGame('worker1.png')">공주 (부활)</button>
         <button onclick="window.startGame('worker2.png')">청양 (무적)</button>
         <button onclick="window.startGame('worker3.png')">논산계룡 (보너스)</button>
+        <button onclick="window.startGame('worker4.png')">천안 (작은 판정)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 청양 무적 스킬 사용)</p>
@@ -95,7 +96,6 @@
             targetX = Math.max(0, Math.min(e.clientX - rect.left - player.w/2, canvas.width - player.w));
         });
 
-        // 스페이스바 대신 마우스 클릭(mousedown)으로 변경
         window.addEventListener('mousedown', (e) => {
             if (gameActive && invincibleCount > 0 && !isInvincible) {
                 isInvincible = true; 
@@ -140,7 +140,12 @@
             obstacles.forEach((obj, i) => {
                 obj.y += 3 + (score/500);
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
-                if (!isInvincible && px > obj.x+5 && px < obj.x+obj.w-5 && py > obj.y+5 && py < obj.y+obj.h-5) {
+                
+                // 천안 캐릭터(worker4) 판정 로직 추가: 충돌 범위를 작게 설정 (러프한 판정)
+                let hitBuffer = player.img.src.includes('worker4.png') ? 20 : 5; 
+                
+                if (!isInvincible && px > obj.x + hitBuffer && px < obj.x + obj.w - hitBuffer && 
+                    py > obj.y + hitBuffer && py < obj.y + obj.h - hitBuffer) {
                     if (hasExtraLife) { hasExtraLife = false; obstacles = []; shakeTime = 40; floatingTexts.push({x:player.x, y:player.y, alpha:1.0, text:"👸 부활!"}); }
                     else gameOver();
                 }
