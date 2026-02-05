@@ -9,11 +9,7 @@
         button { padding: 10px 20px; font-size: 16px; cursor: pointer; border-radius: 5px; border: none; background: #ffcc00; font-weight: bold; margin: 5px; }
         button:hover { background: #ffa500; }
         .hidden { display: none; }
-        
-        /* 공지사항 스타일 */
         .notice-board { background: #444; color: #00ffcc; padding: 10px; border-radius: 5px; margin-bottom: 15px; font-size: 14px; border-left: 5px solid #00ffcc; text-align: left; }
-        
-        /* 리더보드 스크롤 제거 */
         .leaderboard { margin-top: 15px; text-align: left; font-size: 14px; color: #ffcc00; line-height: 1.6; }
     </style>
 </head>
@@ -26,9 +22,10 @@
         <p>탈출할 캐릭터를 선택하세요!</p>
         <button onclick="window.startGame('worker1.png')">공주 (공주님부활)</button>
         <button onclick="window.startGame('worker2.png')">청양 (무적청양꼬추)</button>
-        <button onclick="window.startGame('worker3.png')">논산계룡 (딸기보너쓰)</button>
+        <button onclick="window.startGame('worker3.png')">논산계룡 (달기보너쓰)</button>
         <button onclick="window.startGame('worker4.png')">천안 (천안호도과자)</button>
-        <button onclick="window.startGame('worker5.png')">보령 (서해진흑쑈)</button>
+        <button onclick="window.startGame('worker5.png')">보령 (머드슬로우)</button>
+        <button onclick="window.startGame('worker6.png')">부여 (유물발견중단)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 특수 스킬 사용)</p>
@@ -61,14 +58,12 @@
         const leaderboardDiv = document.getElementById('leaderboard');
         const noticeDiv = document.getElementById('notice');
 
-        // --- 실시간 공지사항 불러오기 ---
         const noticeRef = ref(db, 'notice');
         onValue(noticeRef, (snapshot) => {
             const msg = snapshot.val();
             noticeDiv.innerHTML = msg ? `📢 공지: ${msg}` : "📢 공지사항이 없습니다.";
         });
 
-        // --- 리더보드 실시간 업데이트 ---
         const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(30));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
@@ -82,13 +77,13 @@
             }
         });
 
-        // 게임 변수 및 로직
         let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() }; 
         let targetX = 190;
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
         let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; 
         let mudSlowActive = false, mudSlowCount = 0; 
+        let timeStopActive = false, timeStopCount = 0; // 부여 전용 변수
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -116,11 +111,19 @@
                 floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `☁️ 머드슬로우! (남은 횟수: ${mudSlowCount})` });
                 setTimeout(() => { mudSlowActive = false; }, 3000);
             }
+
+            // 부여 시간정지 스킬 로직
+            if (timeStopCount > 0 && !timeStopActive) {
+                timeStopActive = true;
+                timeStopCount--;
+                shakeTime = 20;
+                floatingTexts.push({ x: 50, y: 300, alpha: 2.0, text: "🏺 유물 발견! 즉시 업무 중단!! (2초)" });
+                setTimeout(() => { timeStopActive = false; }, 2000);
+            }
         });
 
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
-            // 캐릭터 사이즈 설정
             player.w = imgSrc.includes('worker4.png') ? 30 : 80;
             player.h = imgSrc.includes('worker4.png') ? 30 : 80;
             player.y = 700 - player.h - 30;
@@ -128,9 +131,11 @@
             hasExtraLife = imgSrc.includes('worker1.png');
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
             mudSlowCount = imgSrc.includes('worker5.png') ? 3 : 0; 
+            timeStopCount = imgSrc.includes('worker6.png') ? 2 : 0; // 부여는 정지 2회
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
             
-            isInvincible = false; mudSlowActive = false; shakeTime = 0; bossActive = false; bossTimer = 0;
+            isInvincible = false; mudSlowActive = false; timeStopActive = false;
+            shakeTime = 0; bossActive = false; bossTimer = 0;
             bossTriggers = [1000, 2000, 3000];
             startScreen.classList.add('hidden');
             canvas.classList.remove('hidden');
@@ -154,12 +159,13 @@
             player.x += (targetX - player.x) * easing;
             if (!isInvincible || Math.floor(Date.now()/100)%2===0) ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
             
-            handleBoss();
+            if (!timeStopActive) handleBoss(); // 시간 정지 중엔 보스 타이머 및 트리거 중단
             let px = player.x + player.w/2, py = player.y + player.h/2;
 
             obstacles.forEach((obj, i) => {
                 let speed = 3 + (score/500);
-                if (mudSlowActive) speed *= 0.25;
+                if (timeStopActive) speed = 0; // 시간 정지 시 이동 속도 0
+                else if (mudSlowActive) speed *= 0.25;
                 obj.y += speed;
                 
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
@@ -167,7 +173,7 @@
                 let hitW = player.w / 2 - 5;
                 let hitH = player.h / 2 - 5;
                 
-                if (!isInvincible && px > obj.x + 5 && px < obj.x + obj.w - 5 && 
+                if (!isInvincible && !timeStopActive && px > obj.x + 5 && px < obj.x + obj.w - 5 && 
                     py > obj.y + 5 && py < obj.y + obj.h - 5) {
                     if (Math.abs(px - (obj.x + obj.w/2)) < (hitW + obj.w/2) &&
                         Math.abs(py - (obj.y + obj.h/2)) < (hitH + obj.h/2)) {
@@ -180,7 +186,8 @@
 
             items.forEach((item, i) => {
                 let itemSpeed = 3;
-                if (mudSlowActive) itemSpeed *= 0.25;
+                if (timeStopActive) itemSpeed = 0;
+                else if (mudSlowActive) itemSpeed *= 0.25;
                 item.y += itemSpeed;
                 
                 ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
@@ -197,17 +204,22 @@
                 if (ft.alpha <= 0) floatingTexts.splice(i, 1);
             });
 
-            spawnObstacle(); spawnItem();
+            if (!timeStopActive) { spawnObstacle(); spawnItem(); } // 시간 정지 중엔 생성 안됨
+            
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
             
-            if (invincibleCount > 0) ctx.fillText(`클릭으로 무적 가능: ${invincibleCount}회`, 20, 70);
-            if (mudSlowCount > 0) ctx.fillText(`클릭으로 슬로우 가능: ${mudSlowCount}회`, 20, 70);
-            if (mudSlowActive) {
-                ctx.fillStyle = "rgba(139, 69, 19, 0.3)";
+            if (invincibleCount > 0) ctx.fillText(`무적 가능: ${invincibleCount}회`, 20, 70);
+            if (mudSlowCount > 0) ctx.fillText(`슬로우 가능: ${mudSlowCount}회`, 20, 70);
+            if (timeStopCount > 0) ctx.fillText(`업무중단 가능: ${timeStopCount}회`, 20, 70);
+            
+            if (timeStopActive) {
+                ctx.fillStyle = "rgba(255, 255, 255, 0.2)";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = "brown";
-                ctx.fillText("MUD SLOW ACTIVE!", canvas.width/2 - 80, 180);
+                ctx.fillStyle = "gold";
+                ctx.font = "bold 30px Courier New";
+                ctx.textAlign = "center";
+                ctx.fillText("🛑 유물 보존 구역 (업무 중단)", canvas.width/2, canvas.height/2);
             }
             
             ctx.restore();
@@ -289,4 +301,3 @@
     </script>
 </body>
 </html>
-
