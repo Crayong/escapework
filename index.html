@@ -27,7 +27,7 @@
         <button onclick="window.startGame('worker1.png')">공주 (부활)</button>
         <button onclick="window.startGame('worker2.png')">청양 (무적)</button>
         <button onclick="window.startGame('worker3.png')">논산계룡 (보너스)</button>
-        <button onclick="window.startGame('worker4.png')">천안 (작은 판정)</button>
+        <button onclick="window.startGame('worker4.png')">천안 (작은 덩치)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 청양 무적 스킬 사용)</p>
@@ -67,7 +67,7 @@
             noticeDiv.innerHTML = msg ? `📢 공지: ${msg}` : "📢 공지사항이 없습니다.";
         });
 
-        // --- 리더보드 실시간 업데이트 (스크롤 없이 전체 출력) ---
+        // --- 리더보드 실시간 업데이트 ---
         const scoreRef = query(ref(db, 'leaderboard'), orderByChild('score'), limitToLast(30));
         onValue(scoreRef, (snapshot) => {
             const data = snapshot.val();
@@ -82,7 +82,7 @@
         });
 
         // 게임 변수 및 로직
-        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() };
+        let player = { x: 190, y: 600, w: 70, h: 70, img: new Image() }; 
         let targetX = 190;
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
@@ -108,6 +108,12 @@
 
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
+            // 천안 캐릭터(worker4) 선택 시 사이즈를 50으로 줄임, 나머지는 70
+            player.w = imgSrc.includes('worker4.png') ? 50 : 70;
+            player.h = imgSrc.includes('worker4.png') ? 50 : 70;
+            // 작아진 만큼 바닥 위치 조정 (y축)
+            player.y = 700 - player.h - 30;
+
             hasExtraLife = imgSrc.includes('worker1.png');
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
@@ -131,6 +137,7 @@
             ctx.clearRect(-50, -50, canvas.width+100, canvas.height+100);
             ctx.strokeStyle = "#eee";
             for(let i=0; i<canvas.width; i+=50) { ctx.strokeRect(i, 0, 50, canvas.height); }
+            
             player.x += (targetX - player.x) * easing;
             if (!isInvincible || Math.floor(Date.now()/100)%2===0) ctx.drawImage(player.img, player.x, player.y, player.w, player.h);
             
@@ -141,13 +148,20 @@
                 obj.y += 3 + (score/500);
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
                 
-                // 천안 캐릭터(worker4) 판정 로직 추가: 충돌 범위를 작게 설정 (러프한 판정)
-                let hitBuffer = player.img.src.includes('worker4.png') ? 20 : 5; 
+                // --- 판정 로직: 모든 캐릭터가 자기 덩치만큼 정직하게 판정 받음 ---
+                // 캐릭터의 중심점(px, py) 기준으로 각자의 너비/높이 절반만큼 범위를 설정
+                let hitW = player.w / 2 - 5; // 약간의 여유(5px)만 둠
+                let hitH = player.h / 2 - 5;
                 
-                if (!isInvincible && px > obj.x + hitBuffer && px < obj.x + obj.w - hitBuffer && 
-                    py > obj.y + hitBuffer && py < obj.y + obj.h - hitBuffer) {
-                    if (hasExtraLife) { hasExtraLife = false; obstacles = []; shakeTime = 40; floatingTexts.push({x:player.x, y:player.y, alpha:1.0, text:"👸 부활!"}); }
-                    else gameOver();
+                if (!isInvincible && px > obj.x + 5 && px < obj.x + obj.w - 5 && 
+                    py > obj.y + 5 && py < obj.y + obj.h - 5) {
+                    
+                    // 정밀한 사각형 충돌 판정
+                    if (Math.abs(px - (obj.x + obj.w/2)) < (hitW + obj.w/2) &&
+                        Math.abs(py - (obj.y + obj.h/2)) < (hitH + obj.h/2)) {
+                        if (hasExtraLife) { hasExtraLife = false; obstacles = []; shakeTime = 40; floatingTexts.push({x:player.x, y:player.y, alpha:1.0, text:"👸 부활!"}); }
+                        else gameOver();
+                    }
                 }
                 if (obj.y > canvas.height) { obstacles.splice(i,1); score++; }
             });
