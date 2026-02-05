@@ -28,9 +28,10 @@
         <button onclick="window.startGame('worker2.png')">청양 (무적청양꼬추)</button>
         <button onclick="window.startGame('worker3.png')">논산계룡 (달기보너쓰)</button>
         <button onclick="window.startGame('worker4.png')">천안 (천안호도과자)</button>
+        <button onclick="window.startGame('worker5.png')">보령 (머드슬로우)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
-        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 청양 무적 스킬 사용)</p>
+        <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 특수 스킬 사용)</p>
     </div>
 
     <canvas id="gameCanvas" width="450" height="700" class="hidden"></canvas>
@@ -87,6 +88,7 @@
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
         let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; 
+        let mudSlowActive = false, mudSlowCount = 0; // 보령 전용 변수
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -97,27 +99,40 @@
         });
 
         window.addEventListener('mousedown', (e) => {
-            if (gameActive && invincibleCount > 0 && !isInvincible) {
+            if (!gameActive) return;
+            
+            // 청양 무적 스킬
+            if (invincibleCount > 0 && !isInvincible) {
                 isInvincible = true; 
                 invincibleCount--; 
                 shakeTime = 15;
                 floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `🛡️ 무적 가동! (남은 횟수: ${invincibleCount})` });
                 setTimeout(() => { isInvincible = false; }, 2000);
             }
+            
+            // 보령 머드슬로우 스킬
+            if (mudSlowCount > 0 && !mudSlowActive) {
+                mudSlowActive = true;
+                mudSlowCount--;
+                shakeTime = 10;
+                floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `☁️ 머드슬로우! (남은 횟수: ${mudSlowCount})` });
+                setTimeout(() => { mudSlowActive = false; }, 3000); // 3초 지속
+            }
         });
 
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
-            // 천안 캐릭터(worker4) 선택 시 사이즈를 30으로 줄임, 나머지는 70
+            // 캐릭터 사이즈 설정
             player.w = imgSrc.includes('worker4.png') ? 30 : 80;
             player.h = imgSrc.includes('worker4.png') ? 30 : 80;
-            // 작아진 만큼 바닥 위치 조정 (y축)
             player.y = 700 - player.h - 30;
 
             hasExtraLife = imgSrc.includes('worker1.png');
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
+            mudSlowCount = imgSrc.includes('worker5.png') ? 3 : 0; // 보령은 슬로우 3회
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
-            isInvincible = false; shakeTime = 0; bossActive = false; bossTimer = 0;
+            
+            isInvincible = false; mudSlowActive = false; shakeTime = 0; bossActive = false; bossTimer = 0;
             bossTriggers = [1000, 2000, 3000];
             startScreen.classList.add('hidden');
             canvas.classList.remove('hidden');
@@ -145,18 +160,18 @@
             let px = player.x + player.w/2, py = player.y + player.h/2;
 
             obstacles.forEach((obj, i) => {
-                obj.y += 3 + (score/500);
+                // 머드슬로우 상태일 때는 속도 1/4로 감소
+                let speed = 3 + (score/500);
+                if (mudSlowActive) speed *= 0.25;
+                obj.y += speed;
+                
                 ctx.drawImage(obj.img, obj.x, obj.y, obj.w, obj.h);
                 
-                // --- 판정 로직: 모든 캐릭터가 자기 덩치만큼 정직하게 판정 받음 ---
-                // 캐릭터의 중심점(px, py) 기준으로 각자의 너비/높이 절반만큼 범위를 설정
-                let hitW = player.w / 2 - 5; // 약간의 여유(5px)만 둠
+                let hitW = player.w / 2 - 5;
                 let hitH = player.h / 2 - 5;
                 
                 if (!isInvincible && px > obj.x + 5 && px < obj.x + obj.w - 5 && 
                     py > obj.y + 5 && py < obj.y + obj.h - 5) {
-                    
-                    // 정밀한 사각형 충돌 판정
                     if (Math.abs(px - (obj.x + obj.w/2)) < (hitW + obj.w/2) &&
                         Math.abs(py - (obj.y + obj.h/2)) < (hitH + obj.h/2)) {
                         if (hasExtraLife) { hasExtraLife = false; obstacles = []; shakeTime = 40; floatingTexts.push({x:player.x, y:player.y, alpha:1.0, text:"👸 부활!"}); }
@@ -167,7 +182,11 @@
             });
 
             items.forEach((item, i) => {
-                item.y += 3; ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
+                let itemSpeed = 3;
+                if (mudSlowActive) itemSpeed *= 0.25;
+                item.y += itemSpeed;
+                
+                ctx.drawImage(item.img, item.x, item.y, item.w, item.h);
                 if (px > item.x && px < item.x+item.w && py > item.y && py < item.y+item.h) {
                     let gain = item.img.src.includes('money.png') ? itemBonusValue : 10;
                     score += gain; floatingTexts.push({x:item.x, y:item.y, alpha:1.0, text:`+${gain}!`});
@@ -184,7 +203,17 @@
             spawnObstacle(); spawnItem();
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
+            
+            // UI 표시
             if (invincibleCount > 0) ctx.fillText(`클릭으로 무적 가능: ${invincibleCount}회`, 20, 70);
+            if (mudSlowCount > 0) ctx.fillText(`클릭으로 슬로우 가능: ${mudSlowCount}회`, 20, 70);
+            if (mudSlowActive) {
+                ctx.fillStyle = "rgba(139, 69, 19, 0.3)"; // 진흙 색상 오버레이
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = "brown";
+                ctx.fillText("MUD SLOW ACTIVE!", canvas.width/2 - 80, 180);
+            }
+            
             ctx.restore();
             requestAnimationFrame(update);
         }
@@ -264,5 +293,3 @@
     </script>
 </body>
 </html>
-
-
