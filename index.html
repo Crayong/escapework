@@ -24,10 +24,10 @@
         <div id="notice" class="notice-board">📢 공지사항 불러오는 중...</div>
 
         <p>탈출할 캐릭터를 선택하세요!</p>
-        <button onclick="window.startGame('worker1.png')">공주 (부활)</button>
-        <button onclick="window.startGame('worker2.png')">청양 (무적)</button>
-        <button onclick="window.startGame('worker3.png')">논산계룡 (보너스)</button>
-        <button onclick="window.startGame('worker4.png')">천안 (작은 덩치)</button>
+        <button onclick="window.startGame('worker1.png')">공주 (공주님부활)</button>
+        <button onclick="window.startGame('worker2.png')">청양 (무적청양꼬추)</button>
+        <button onclick="window.startGame('worker3.png')">논산계룡 (달기보너쓰)</button>
+        <button onclick="window.startGame('worker4.png')">천안 (천안호도과자)</button>
         
         <div id="leaderboard" class="leaderboard">데이터 불러오는 중...</div>
         <p style="font-size: 12px; color: #aaa; margin-top: 10px;">(마우스 클릭: 청양 무적 스킬 사용)</p>
@@ -108,9 +108,9 @@
 
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
-            // 천안 캐릭터(worker4) 선택 시 사이즈를 50으로 줄임, 나머지는 70
-            player.w = imgSrc.includes('worker4.png') ? 20 : 80;
-            player.h = imgSrc.includes('worker4.png') ? 20 : 80;
+            // 천안 캐릭터(worker4) 선택 시 사이즈를 30으로 줄임, 나머지는 70
+            player.w = imgSrc.includes('worker4.png') ? 30 : 80;
+            player.h = imgSrc.includes('worker4.png') ? 30 : 80;
             // 작아진 만큼 바닥 위치 조정 (y축)
             player.y = 700 - player.h - 30;
 
@@ -264,4 +264,5 @@
     </script>
 </body>
 </html>
+
 
