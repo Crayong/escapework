@@ -88,7 +88,7 @@
         const easing = 0.12;
         let obstacles = [], items = [], floatingTexts = [];
         let score = 0, gameActive = false, hasExtraLife = false, isInvincible = false, invincibleCount = 0; 
-        let mudSlowActive = false, mudSlowCount = 0; // 보령 전용 변수
+        let mudSlowActive = false, mudSlowCount = 0; 
         let itemBonusValue = 50, shakeTime = 0, bossTimer = 0, currentBossType = "", bossActive = false;
         let bossTriggers = [1000, 2000, 3000];
 
@@ -101,7 +101,6 @@
         window.addEventListener('mousedown', (e) => {
             if (!gameActive) return;
             
-            // 청양 무적 스킬
             if (invincibleCount > 0 && !isInvincible) {
                 isInvincible = true; 
                 invincibleCount--; 
@@ -110,13 +109,12 @@
                 setTimeout(() => { isInvincible = false; }, 2000);
             }
             
-            // 보령 머드슬로우 스킬
             if (mudSlowCount > 0 && !mudSlowActive) {
                 mudSlowActive = true;
                 mudSlowCount--;
                 shakeTime = 10;
                 floatingTexts.push({ x: player.x, y: player.y - 50, alpha: 1.0, text: `☁️ 머드슬로우! (남은 횟수: ${mudSlowCount})` });
-                setTimeout(() => { mudSlowActive = false; }, 3000); // 3초 지속
+                setTimeout(() => { mudSlowActive = false; }, 3000);
             }
         });
 
@@ -129,7 +127,7 @@
 
             hasExtraLife = imgSrc.includes('worker1.png');
             invincibleCount = imgSrc.includes('worker2.png') ? 2 : 0;
-            mudSlowCount = imgSrc.includes('worker5.png') ? 3 : 0; // 보령은 슬로우 3회
+            mudSlowCount = imgSrc.includes('worker5.png') ? 3 : 0; 
             itemBonusValue = imgSrc.includes('worker3.png') ? 100 : 50;
             
             isInvincible = false; mudSlowActive = false; shakeTime = 0; bossActive = false; bossTimer = 0;
@@ -160,7 +158,6 @@
             let px = player.x + player.w/2, py = player.y + player.h/2;
 
             obstacles.forEach((obj, i) => {
-                // 머드슬로우 상태일 때는 속도 1/4로 감소
                 let speed = 3 + (score/500);
                 if (mudSlowActive) speed *= 0.25;
                 obj.y += speed;
@@ -195,7 +192,7 @@
             });
 
             floatingTexts.forEach((ft, i) => {
-                ctx.fillStyle = `rgba(255,204,0,${ft.alpha})`; ctx.font = "bold 20px Courier New";
+                ctx.fillStyle = `rgba(255, 204, 0, ${ft.alpha})`; ctx.font = "bold 20px Courier New";
                 ctx.fillText(ft.text, ft.x, ft.y); ft.y -= 1; ft.alpha -= 0.02;
                 if (ft.alpha <= 0) floatingTexts.splice(i, 1);
             });
@@ -204,11 +201,10 @@
             ctx.fillStyle = "#333"; ctx.font = "bold 20px Arial"; ctx.textAlign = "left";
             ctx.fillText("업무량: " + score, 20, 40);
             
-            // UI 표시
             if (invincibleCount > 0) ctx.fillText(`클릭으로 무적 가능: ${invincibleCount}회`, 20, 70);
             if (mudSlowCount > 0) ctx.fillText(`클릭으로 슬로우 가능: ${mudSlowCount}회`, 20, 70);
             if (mudSlowActive) {
-                ctx.fillStyle = "rgba(139, 69, 19, 0.3)"; // 진흙 색상 오버레이
+                ctx.fillStyle = "rgba(139, 69, 19, 0.3)";
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
                 ctx.fillStyle = "brown";
                 ctx.fillText("MUD SLOW ACTIVE!", canvas.width/2 - 80, 180);
