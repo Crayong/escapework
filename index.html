@@ -109,8 +109,8 @@
         window.startGame = function(imgSrc) {
             player.img.src = imgSrc;
             // 천안 캐릭터(worker4) 선택 시 사이즈를 50으로 줄임, 나머지는 70
-            player.w = imgSrc.includes('worker4.png') ? 50 : 70;
-            player.h = imgSrc.includes('worker4.png') ? 50 : 70;
+            player.w = imgSrc.includes('worker4.png') ? 20 : 80;
+            player.h = imgSrc.includes('worker4.png') ? 20 : 80;
             // 작아진 만큼 바닥 위치 조정 (y축)
             player.y = 700 - player.h - 30;
 
@@ -264,3 +264,4 @@
     </script>
 </body>
 </html>
+
